@@ -227,10 +227,26 @@ python seed.py
 |---|---|
 | 全部 Python 檔語法 | ✅ 通過 |
 | 篩查閘門校準（16 個案例） | ✅ 16/16 通過（`python tests/test_screen.py`） |
-| FastAPI 匯入 + 16 條路由註冊 | ✅ 通過 |
-| 服務啟動、`/healthz` `/` `/openapi.json` | ✅ 全部 HTTP 200 |
+| FastAPI 匯入 + 17 條路由註冊 | ✅ 通過 |
+| 服務啟動、`/healthz` `/` `/openapi.json` `/static/architecture.svg` | ✅ 全部 HTTP 200 |
+| MCP server（8 個工具註冊） | ✅ 通過（`app/mcp_server.py`） |
+| `AnthropicBedrockMantle` 可建構、指向 bedrock-mantle 端點 | ✅ 通過 |
+| `.env` 不依賴 cwd（MCP client / 容器啟動用） | ✅ 通過 |
+| 事務重試邏輯（SQLSTATE 40001） | ✅ 離線測過重試、放棄、非重試錯誤三路徑 |
+| 架構圖 39 個標籤無溢出 | ✅ 瀏覽器實測 `static/architecture.svg` |
 | CockroachDB 連線 + 向量索引 | ⬜ 需要你的 DSN——跑 `app.smoke` |
 | Bedrock 嵌入 + 推理 | ⬜ 需要你的 AWS 憑證——跑 `app.smoke` |
+
+### 建置過程中修掉的真實缺陷
+
+> 這幾個都是「不接真憑證就發現不了、接了就當場炸」的類型，記在這裡免得重犯：
+>
+> 1. **`AnthropicBedrockMantle` 在 anthropic 0.69.0 根本不存在**。手冊 §3 寫的 client 名稱是對的，但釘住的版本太舊——已升到 0.122.0。順帶踩到 `mcp` 2.0 把 starlette 拉到 1.6.0、直接打爆 fastapi 0.115.6，已一併升到 fastapi 0.141.1。**requirements.txt 的版本現在是互相咬合的，不要單獨降任何一個。**
+> 2. **`AS OF SYSTEM TIME` 原本每張表各貼一次**（`FROM memories m AS OF ... JOIN sources s AS OF ...`）。這是語法錯誤——該子句是整句作用域，只能出現一次、放在最後一個 JOIN 之後、WHERE 之前。時間旅行是影片 2:00–2:40 的賣點，不修就是整段拍不出來。
+> 3. **`tx()` 的重試迴圈是壞的**。`@contextmanager` 的 generator 不能 yield 兩次，重試時會丟 `generator didn't stop after throw()` 而不是重試。已拆成 `retry_on_serialization` 裝飾器包住整個函式（這才是 CockroachDB 的 client 契約）。
+> 4. **Opus 5 預設開 thinking，而 `max_tokens` 是 thinking + 回覆的總上限**。原本裁決器給 200 tokens，實際會回空字串而不是短答案。已提高上限並用 `effort` 控延遲。
+> 5. **`load_dotenv()` 不吃 cwd 以外的 .env**。MCP client 啟動 server 時 cwd 不可控，容器裡也一樣——原本會在「DSN 沒設」的錯誤訊息裡死掉。已改成從專案根目錄解析。
+> 6. **`seed.py` 從來沒寫過 `memory_edges`**。整個 demo 語料裡沒有任何一條派生邊，遞迴 CTE 級聯根本沒被走到——影片最強的那 40 秒等於在演一個沒被驗證的功能。已加 `--baseline` 模式，會讓 agent 寫一條 derived_from 指向投毒記憶的自述筆記。
 
 > 篩查測試在建置過程中抓到兩個真實校準錯誤：`Ignore all previous instructions`（最經典的注入字串）原本得分 0.45，剛好低於 0.50 閘門而被放行；tool_output 層級（tier 1，最典型的注入載體）也能靠信任折扣把 override 混進來。兩者都已修——`instruction_override` 權重提到 0.60，並新增 `operator_only` 機制：override / 資金重導 / 外傳這幾類訊號在 operator 以外的所有層級一律不吃信任折扣。**這個 operator_only 設計本身就是影片和 README 裡值得講的一段。**
 

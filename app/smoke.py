@@ -63,10 +63,13 @@ def main() -> int:
         kind="document", label="smoke-test-source", trust_tier=config.TIER_UNTRUSTED
     )
 
+    captured: dict[str, str] = {}
+
     def clean_write():
         r = memory.write("The Q3 vendor review is scheduled for October 14.", src)
         if not r.admitted:
             raise RuntimeError(f"benign content was quarantined: {r.verdict}")
+        captured["memory_id"] = r.memory_id
         return f"memory {r.memory_id[:8]}"
 
     ok &= check("Write path — benign content admitted", clean_write)
@@ -93,8 +96,6 @@ def main() -> int:
 
     ok &= check("Hybrid retrieval", retrieval)
 
-    captured: dict[str, str] = {}
-
     def revocation():
         before = memory.stats()["live_memories"]
         # Stamp the cluster clock BEFORE revoking, so the replay check below has
@@ -113,20 +114,22 @@ def main() -> int:
     ok &= check("Cascading revocation", revocation)
 
     def time_travel():
+        # Track the specific row this run created. Asserting on "no hits at all"
+        # would be wrong: a seeded corpus has its own live memories about the
+        # vendor review, and they SHOULD still be returned — only the revoked
+        # one should vanish.
+        mid = captured["memory_id"]
         query = "when is the vendor review"
-        now_hits = memory.recall(query, limit=3)
-        past_hits = memory.recall(query, limit=3, as_of=captured["t0"])
-        if now_hits:
-            raise RuntimeError("revoked memory is still retrievable in the present")
-        if not past_hits:
+        now_ids = {h.id for h in memory.recall(query, limit=10)}
+        past_ids = {h.id for h in memory.recall(query, limit=10, as_of=captured["t0"])}
+        if mid in now_ids:
+            raise RuntimeError("the revoked memory is still retrievable in the present")
+        if mid not in past_ids:
             raise RuntimeError(
-                "replay at a pre-revocation timestamp returned nothing — the "
-                "query ran, but it is not reconstructing the historical state"
+                "the revoked memory is absent from the pre-revocation replay too — "
+                "the query ran, but it is not reconstructing the historical state"
             )
-        return (
-            f"{len(past_hits)} hit(s) before revocation, {len(now_hits)} now "
-            f"(replayed: {past_hits[0].content[:38]}...)"
-        )
+        return f"revoked row visible at t0, gone now ({len(past_ids)}->{len(now_ids)} hits)"
 
     ok &= check("AS OF SYSTEM TIME replay", time_travel)
 

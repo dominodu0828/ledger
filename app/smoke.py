@@ -114,4 +114,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        code = main()
+    finally:
+        db.close()
+    sys.exit(code)

@@ -17,7 +17,7 @@ walkthrough need.
 
 import argparse
 
-from app import config, memory
+from app import config, db, memory
 
 CLEAN_KB = """The Q3 vendor review is scheduled for October 14 in the Boston office.
 Acme Logistics is our primary freight partner for the northeast corridor.
@@ -134,4 +134,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        db.close()

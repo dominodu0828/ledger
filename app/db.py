@@ -30,6 +30,20 @@ def pool() -> ConnectionPool:
     return _pool
 
 
+def close() -> None:
+    """Shut the pool down cleanly.
+
+    One-shot scripts call this before exiting. Without it psycopg_pool prints
+    a "couldn't stop thread ... within 5.0 seconds" warning per worker at
+    interpreter teardown — harmless, but it lands in the terminal output the
+    demo video records.
+    """
+    global _pool
+    if _pool is not None:
+        _pool.close()
+        _pool = None
+
+
 @contextmanager
 def tx():
     """Yield a cursor inside an explicit transaction. Single attempt.

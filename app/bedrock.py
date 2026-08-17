@@ -1,9 +1,14 @@
-"""AWS Bedrock: embeddings via Titan, reasoning via Claude.
+"""AWS Bedrock: embeddings via Titan, reasoning via a pluggable chat model.
 
 Two clients on purpose:
-  * boto3 bedrock-runtime for Titan embeddings (no SDK wrapper needed)
-  * AnthropicBedrockMantle for Claude, so the agent code uses the ordinary
-    Messages API surface instead of hand-rolling InvokeModel payloads.
+  * boto3 bedrock-runtime for Titan embeddings and for the Converse API, which
+    covers Nova and every other Bedrock chat model;
+  * AnthropicBedrockMantle for Claude, so that path uses the ordinary Messages
+    API surface instead of hand-rolling InvokeModel payloads.
+
+Which one runs is `config.CHAT_BACKEND`. Nothing in the memory layer depends on
+the answer — the guarantees this project makes are enforced by CockroachDB, and
+the model is only ever a consumer of what retrieval already decided to return.
 """
 
 import json
@@ -57,13 +62,13 @@ def complete(
     max_tokens: int = 4096,
     effort: str = "medium",
 ) -> str:
-    """One-shot completion. Routes to Claude, or Nova if Claude access is pending.
+    """One-shot completion. Routes by `config.CHAT_BACKEND`.
 
-    On Claude Opus 5 thinking is on by default and `max_tokens` bounds thinking
-    AND the reply together, so the budget has to cover both — a tight
-    `max_tokens` here does not produce a short answer, it produces an empty one.
-    `effort` is the dial that keeps latency sane for the short calls this app
-    makes; leaving thinking enabled avoids the disabled-thinking failure modes.
+    `effort` applies only to the Claude path and is ignored by Converse. It
+    matters there because on Claude Opus 5 thinking is on by default and
+    `max_tokens` bounds thinking AND the reply together — a tight `max_tokens`
+    does not produce a short answer, it produces an empty one. Keeping thinking
+    enabled and turning `effort` down is the safe way to control latency.
     """
     if config.CHAT_BACKEND == "anthropic":
         resp = anthropic_client().messages.create(

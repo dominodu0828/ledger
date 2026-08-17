@@ -54,7 +54,8 @@ of them is available from a vector store bolted onto a key-value cache.
 ![Ledger architecture](static/architecture.svg)
 
 Embeddings come from **Amazon Titan Text Embeddings V2** and agent reasoning from
-**Claude on Amazon Bedrock**; the service runs on **AWS App Runner**.
+**Amazon Nova Pro**, both on **Amazon Bedrock**; the service runs on
+**AWS App Runner**.
 
 Two placements in that diagram are deliberate and worth calling out:
 
@@ -85,8 +86,26 @@ Beyond the checklist, the design leans on recursive CTEs and partial indexes.
 | Service | Where |
 |---|---|
 | **Amazon Bedrock** — Titan Text Embeddings V2 | `bedrock.embed()` — 1024-dim normalized vectors |
-| **Amazon Bedrock** — Claude | `bedrock.complete()` via `AnthropicBedrockMantle`; agent reasoning and the optional adjudicator |
+| **Amazon Bedrock** — Amazon Nova Pro | `bedrock.complete()` — agent reasoning and the optional adjudicator |
 | **AWS App Runner + Amazon ECR** | Container hosting for the public demo |
+
+### A note on the reasoning model
+
+The reasoning model is pluggable and the memory layer does not depend on which
+one is used — every guarantee in this project is enforced by CockroachDB, not by
+the LLM. `bedrock.complete()` ships two backends: `boto3` Converse (Nova, and
+any other Bedrock chat model) and `AnthropicBedrockMantle` (Claude). Switching
+is two lines in `.env`:
+
+```bash
+BEDROCK_CHAT_MODEL=anthropic.claude-opus-5
+CHAT_BACKEND=anthropic
+```
+
+This submission runs Nova Pro because Anthropic models on Bedrock are gated on
+the AWS account's registered country and this account is outside the supported
+set — a `ValidationException` at invoke time, not something a code change can
+route around. Where that gate passes, Claude is the stronger choice here.
 
 ---
 

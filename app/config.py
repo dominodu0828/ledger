@@ -24,13 +24,22 @@ COCKROACH_DSN = _require("COCKROACH_DSN")
 
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 
-# Bedrock model IDs. Claude on Bedrock carries an `anthropic.` prefix; Amazon's
-# own models do not. If Claude model access is still pending, set
-# BEDROCK_CHAT_MODEL=amazon.nova-pro-v1:0 and CHAT_BACKEND=boto3 — that is the
-# only change needed to keep the demo alive.
+# Bedrock model IDs. Amazon's own models take no prefix; Claude on Bedrock
+# carries an `anthropic.` prefix.
+#
+# The default reasoning model is Nova Pro, which is what the deployed demo and
+# the video actually run. Anthropic models on Bedrock are gated on the AWS
+# account's registered country, and this submission was built from an account
+# that gate rejects — the failure is a ValidationException at invoke time, not
+# a permissions problem, so it cannot be worked around in code.
+#
+# Where Claude IS available it is a strictly better reasoning model here, and
+# switching costs two lines in .env and nothing in code:
+#     BEDROCK_CHAT_MODEL=anthropic.claude-opus-5
+#     CHAT_BACKEND=anthropic
 BEDROCK_EMBED_MODEL = os.environ.get("BEDROCK_EMBED_MODEL", "amazon.titan-embed-text-v2:0")
-BEDROCK_CHAT_MODEL = os.environ.get("BEDROCK_CHAT_MODEL", "anthropic.claude-opus-5")
-CHAT_BACKEND = os.environ.get("CHAT_BACKEND", "anthropic")  # anthropic | boto3
+BEDROCK_CHAT_MODEL = os.environ.get("BEDROCK_CHAT_MODEL", "amazon.nova-pro-v1:0")
+CHAT_BACKEND = os.environ.get("CHAT_BACKEND", "boto3")  # boto3 | anthropic
 
 EMBED_DIM = 1024
 

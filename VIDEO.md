@@ -133,8 +133,8 @@ versioning code of my own."
 "CockroachDB gives this distributed vector indexing, serializable transactions
 so the gate can't be raced, a recursive CTE for cascading revocation, and
 `AS OF SYSTEM TIME` for the audit trail. AWS Bedrock supplies Titan embeddings
-and Claude for reasoning, and it deploys on App Runner. Ledger also ships as an
-MCP server, so any agent can mount it as memory that refuses to be poisoned."
+and Nova Pro for reasoning, and it deploys on App Runner. Ledger also ships as
+an MCP server, so any agent can mount it as memory that refuses to be poisoned."
 
 ---
 

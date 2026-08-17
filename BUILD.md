@@ -25,6 +25,12 @@
 
 ## 1. ⚠️ 現在立刻做的三件事（並行，別串行）
 
+> **0817 實測結果**：Bedrock 的模型不用手動勾選了 —— 第一次呼叫時會自動開通（見 AWS 文件 *Request access to models*）。Titan Text Embeddings V2 一次就通。
+>
+> **但 Anthropic 模型被地理限制擋死**：`ValidationException: Access to Anthropic models is not allowed from unsupported countries`。這個檢查看的是 **AWS 帳號登記的國別**，不是請求來源 IP —— 從 CloudShell（us-east-1）發也一樣被擋，部署到 App Runner 也不會變。**程式碼繞不過去。**
+>
+> 已切降級預案：`amazon.nova-pro-v1:0` + `CHAT_BACKEND=boto3`，實測通過。作品立論完全不受影響（四條保證都是 CockroachDB 給的，跟用哪個 LLM 無關），Bedrock 仍然是用到的 AWS 服務。若日後帳號國別問題解決，改 `.env` 兩行即可切回 Claude。
+
 ### 1.1 申請 Bedrock 模型訪問權限 —— 唯一的外部阻塞項
 
 AWS Console → Bedrock → **Model access** → Manage model access，勾選：

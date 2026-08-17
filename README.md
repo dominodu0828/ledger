@@ -205,6 +205,28 @@ would defeat the entire design.
 
 ---
 
+## Deploying
+
+The service deploys to **AWS App Runner** straight from this repository — no
+Docker build and no ECR push. [`apprunner.yaml`](apprunner.yaml) declares the
+managed Python runtime, the build command, and the port.
+
+In the App Runner console: **Create service → Source code repository →** connect
+this GitHub repo → **Use a configuration file**. Then set `COCKROACH_DSN` as a
+service environment variable.
+
+For Bedrock, prefer an **instance role** carrying `bedrock:InvokeModel` over
+static keys — boto3 picks it up from instance metadata, and no credential ever
+lives in the service configuration. `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`
+are read only if that role is absent.
+
+TLS needs no special handling: CockroachDB Cloud presents a chain rooted at ISRG
+Root X1/X2, which is already trusted by the runtime, so `sslmode=verify-full`
+works unmodified. (Windows is the exception — libpq there ignores the OS
+certificate store and needs `%APPDATA%\postgresql\root.crt`.)
+
+---
+
 ## Disclosure
 
 Built from scratch during the submission period (June 30 – August 18, 2026).

@@ -1,0 +1,37 @@
+# AWS App Runner — build straight from this repository.
+#
+# No Docker and no ECR: App Runner's managed Python runtime clones the repo,
+# runs the build commands below, and serves the result. That removes the two
+# heaviest dependencies from the deploy path.
+#
+# TLS needs nothing here. CockroachDB Cloud serves a chain rooted at ISRG Root
+# X1/X2 (Let's Encrypt), which is already in the runtime's system trust store,
+# so `sslmode=verify-full` in the DSN works as-is. Only Windows needs a
+# downloaded root.crt, because libpq there does not read the OS cert store.
+#
+# Secrets are NOT in this file. Set them on the service:
+#   COCKROACH_DSN            (required)
+#   AWS_ACCESS_KEY_ID        \  omit both if you attach an instance role
+#   AWS_SECRET_ACCESS_KEY    /  with bedrock:InvokeModel — boto3 finds it
+version: 1.0
+runtime: python3
+build:
+  commands:
+    build:
+      - pip install --no-cache-dir -r requirements.txt
+run:
+  runtime-version: 3.11
+  command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8080
+  network:
+    port: 8080
+  env:
+    - name: AWS_REGION
+      value: us-east-1
+    - name: BEDROCK_EMBED_MODEL
+      value: amazon.titan-embed-text-v2:0
+    - name: BEDROCK_CHAT_MODEL
+      value: amazon.nova-pro-v1:0
+    - name: CHAT_BACKEND
+      value: boto3
+    - name: SCREEN_THRESHOLD
+      value: "0.5"

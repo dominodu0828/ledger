@@ -93,8 +93,17 @@ def main() -> int:
 
     ok &= check("Hybrid retrieval", retrieval)
 
+    captured: dict[str, str] = {}
+
     def revocation():
         before = memory.stats()["live_memories"]
+        # Stamp the cluster clock BEFORE revoking, so the replay check below has
+        # a timestamp at which the memory provably existed. Asking for a fixed
+        # offset like '-15s' instead predates the write entirely and returns
+        # zero rows — which passes, while proving nothing at all.
+        with db.read() as cur:
+            cur.execute("SELECT now()")
+            captured["t0"] = cur.fetchone()[0].strftime("%Y-%m-%d %H:%M:%S.%f%z")
         result = memory.revoke_source(src, reason="smoke test cleanup")
         after = memory.stats()["live_memories"]
         if after >= before:
@@ -104,8 +113,20 @@ def main() -> int:
     ok &= check("Cascading revocation", revocation)
 
     def time_travel():
-        hits = memory.recall("when is the vendor review", limit=3, as_of="-15s")
-        return f"{len(hits)} hit(s) visible 15s ago (now {len(memory.recall('when is the vendor review', limit=3))})"
+        query = "when is the vendor review"
+        now_hits = memory.recall(query, limit=3)
+        past_hits = memory.recall(query, limit=3, as_of=captured["t0"])
+        if now_hits:
+            raise RuntimeError("revoked memory is still retrievable in the present")
+        if not past_hits:
+            raise RuntimeError(
+                "replay at a pre-revocation timestamp returned nothing — the "
+                "query ran, but it is not reconstructing the historical state"
+            )
+        return (
+            f"{len(past_hits)} hit(s) before revocation, {len(now_hits)} now "
+            f"(replayed: {past_hits[0].content[:38]}...)"
+        )
 
     ok &= check("AS OF SYSTEM TIME replay", time_travel)
 

@@ -254,11 +254,25 @@ def recall(
             id=str(r[0]),
             content=r[1],
             trust_tier=r[2],
-            score=round(1.0 - float(r[3]), 4),
+            score=_cosine_from_l2(float(r[3])),
             source_label=r[4],
         )
         for r in rows
     ]
+
+
+def _cosine_from_l2(distance: float) -> float:
+    """Convert the `<->` L2 distance back to cosine similarity.
+
+    Titan is called with normalize=true, so every stored vector is unit length,
+    and for unit vectors |a-b|^2 = 2 - 2(a.b) — i.e. cos = 1 - d^2/2.
+
+    Reporting `1 - d` instead (as an earlier version did) is not a rescaling,
+    it is wrong: a genuine 0.71-similarity match renders as 0.24, and anything
+    past d=1 goes negative. That number is on screen in the demo, so it has to
+    mean what a reader assumes it means.
+    """
+    return round(1.0 - (distance * distance) / 2.0, 4)
 
 
 # ---------------------------------------------------------------------------

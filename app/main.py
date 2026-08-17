@@ -44,6 +44,7 @@ class AskIn(BaseModel):
     question: str
     agent_id: str = "default"
     min_trust: int = 0
+    baseline: bool = False
 
 
 class RevokeIn(BaseModel):
@@ -129,7 +130,7 @@ def api_recall(
 
 @app.post("/api/ask")
 def api_ask(body: AskIn):
-    return agent.ask(body.question, body.agent_id, body.min_trust)
+    return agent.ask(body.question, body.agent_id, body.min_trust, body.baseline)
 
 
 @app.post("/api/revoke")

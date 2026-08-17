@@ -226,10 +226,19 @@ instance metadata so no credential lives in the service configuration at all.
 Hosting is not what makes this an AWS submission: Bedrock supplies the embeddings
 and the reasoning model over the API, from wherever the container runs.
 
-TLS needs no special handling: CockroachDB Cloud presents a chain rooted at ISRG
-Root X1/X2, which is already trusted by the runtime, so `sslmode=verify-full`
-works unmodified. (Windows is the exception — libpq there ignores the OS
-certificate store and needs `%APPDATA%\postgresql\root.crt`.)
+TLS needs nothing from you either, but not for the reason you might expect.
+**libpq does not fall back to the operating system trust store.** Under
+`sslmode=verify-full` it looks for `~/.postgresql/root.crt` and fails the
+connection outright when that file is missing — which is every fresh container,
+no matter how ordinary the issuing CA is. CockroachDB Cloud's chain is rooted at
+ISRG Root X1/X2, and it still fails, because libpq never consults the store
+those roots live in.
+
+So the chain is committed at [`deploy/cockroach-ca.crt`](deploy/cockroach-ca.crt)
+— a public certificate chain, not a secret — and `db.dsn()` attaches it when the
+DSN asks to verify and names no `sslrootcert` of its own. `sslrootcert=system`
+would say this more directly, but it needs libpq 16+ and psycopg currently
+bundles libpq 14.
 
 ---
 

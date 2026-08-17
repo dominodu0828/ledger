@@ -7,21 +7,49 @@ intermediate state.
 """
 
 import functools
+import pathlib
 from contextlib import contextmanager
 
 import psycopg
+from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from psycopg_pool import ConnectionPool
 
 from . import config
 
 _pool: ConnectionPool | None = None
 
+# The CockroachDB Cloud CA chain, committed deliberately. It is a public
+# certificate chain, not a secret.
+CA_BUNDLE = pathlib.Path(__file__).resolve().parent.parent / "deploy" / "cockroach-ca.crt"
+
+
+def dsn() -> str:
+    """The configured DSN, with a CA bundle attached when one is needed.
+
+    libpq does NOT fall back to the operating system's trust store. Under
+    `sslmode=verify-full` it looks for `~/.postgresql/root.crt` and fails the
+    connection outright if that file is missing — which is every fresh
+    container, however standard the issuing CA happens to be. (The chain here
+    is rooted at ISRG Root X1/X2, and it still fails, because libpq never
+    consults the store those roots live in.)
+
+    `sslrootcert=system` would express this directly, but it needs libpq 16+
+    and psycopg's bundled binary is currently libpq 14 — so pointing at a
+    committed copy of the chain is the portable answer. An explicit
+    `sslrootcert` in the DSN always wins.
+    """
+    info = conninfo_to_dict(config.COCKROACH_DSN)
+    verifying = info.get("sslmode") in ("verify-ca", "verify-full")
+    if verifying and not info.get("sslrootcert") and CA_BUNDLE.is_file():
+        info["sslrootcert"] = str(CA_BUNDLE)
+    return make_conninfo(**info)
+
 
 def pool() -> ConnectionPool:
     global _pool
     if _pool is None:
         _pool = ConnectionPool(
-            config.COCKROACH_DSN,
+            dsn(),
             min_size=1,
             max_size=8,
             kwargs={"autocommit": True},

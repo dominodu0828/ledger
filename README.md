@@ -207,18 +207,24 @@ would defeat the entire design.
 
 ## Deploying
 
-The service deploys to **AWS App Runner** straight from this repository — no
-Docker build and no ECR push. [`apprunner.yaml`](apprunner.yaml) declares the
-managed Python runtime, the build command, and the port.
+Two blueprints are checked in, both building straight from this repository — no
+Docker build and no registry push in either case.
 
-In the App Runner console: **Create service → Source code repository →** connect
-this GitHub repo → **Use a configuration file**. Then set `COCKROACH_DSN` as a
-service environment variable.
+**AWS App Runner** ([`apprunner.yaml`](apprunner.yaml)) is the preferred target.
+Console: **Create service → Source code repository →** connect this repo →
+**Use a configuration file**. Note it is unavailable on an AWS free-plan account.
 
-For Bedrock, prefer an **instance role** carrying `bedrock:InvokeModel` over
-static keys — boto3 picks it up from instance metadata, and no credential ever
-lives in the service configuration. `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`
-are read only if that role is absent.
+**Render** ([`render.yaml`](render.yaml)) is the fallback, and what the live demo
+runs on. New → Blueprint → point at this repo; Render prompts for the three
+`sync: false` secrets at deploy time.
+
+Either way, the only required secret is `COCKROACH_DSN`; Bedrock credentials come
+from `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`, or — on App Runner — from an
+**instance role** carrying `bedrock:InvokeModel`, which boto3 picks up from
+instance metadata so no credential lives in the service configuration at all.
+
+Hosting is not what makes this an AWS submission: Bedrock supplies the embeddings
+and the reasoning model over the API, from wherever the container runs.
 
 TLS needs no special handling: CockroachDB Cloud presents a chain rooted at ISRG
 Root X1/X2, which is already trusted by the runtime, so `sslmode=verify-full`

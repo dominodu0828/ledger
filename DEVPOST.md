@@ -181,8 +181,13 @@ replaying `audit_log` into a diffable timeline of belief changes.
 |---|---|
 | **Amazon Bedrock** — Titan Text Embeddings V2 | `bedrock.embed()` — 1024-dim normalized vectors for every admitted memory and every query |
 | **Amazon Bedrock** — Amazon Nova Pro | `bedrock.complete()` — memory-augmented answers and the optional adjudicator |
-| **AWS App Runner** | Hosts the public demo, built from source via `apprunner.yaml` |
-| **AWS IAM** | Scoped credentials for Bedrock access |
+| **AWS IAM** | Scoped credentials for Bedrock access (`AmazonBedrockFullAccess` on a dedicated service user) |
+
+An **App Runner** blueprint (`apprunner.yaml`) is checked in and is the preferred
+deployment target, but App Runner is not available on an AWS free-plan account,
+so the live demo is served from Render instead. Bedrock is what makes this an AWS
+submission — it supplies every embedding and every generated answer, over the API,
+from wherever the container happens to run.
 
 ## Built with
 

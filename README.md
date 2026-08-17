@@ -4,6 +4,12 @@
 
 Submitted to the [CockroachDB × AWS Hackathon: Build with Agentic Memory](https://cockroachdb-ai.devpost.com/).
 
+### ▶ Live demo: **<https://ledger-0k5o.onrender.com>**
+
+> Hosted on a free instance that sleeps after 15 minutes of inactivity — the
+> first request may take ~50 seconds to wake it. Every request after that is
+> fast. Try `/api/stats` first to warm it up.
+
 ---
 
 ## The problem

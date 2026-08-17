@@ -5,6 +5,16 @@ the body under each is below.
 
 ---
 
+## Links
+
+- **Live demo:** https://ledger-0k5o.onrender.com
+- **Repository:** https://github.com/dominodu0828/ledger
+
+> ⚠️ Put this line in the Devpost description too: *the demo runs on a free
+> instance that sleeps after 15 minutes idle, so the first request may take
+> ~50 seconds to wake it.* Without that note a judge who hits a cold start is
+> likely to read it as a broken deployment.
+
 ## Tagline
 
 A memory layer for AI agents where poisoned memories are rejected inside the
